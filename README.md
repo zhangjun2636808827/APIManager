@@ -2,6 +2,34 @@
 
 API Manager 是一个基于 Tauri 2、React、TypeScript、Tailwind CSS 和 Tailwind 风格 shadcn/ui 组件构建的 Windows 桌面工具，用于统一管理多个大模型 API 配置，并通过当前选中的 API 进行聊天、模型测试、配置迁移和 provider 控制台访问。
 
+## 项目预览
+
+### API 管理
+
+![API 管理页](image/1.png)
+
+### 聊天
+
+![聊天页](image/2.png)
+
+### 内置网页
+
+![内置网页页](image/3.png)
+
+## 快速开始
+
+如果你只是想直接使用软件，不需要安装 Node.js、Rust 或 Tauri 开发环境。
+
+在 Windows 上直接运行项目根目录中的安装包即可：
+
+```text
+API Manager_0.1.0_x64-setup.exe
+```
+
+安装完成后，打开 API Manager，进入 API 管理页添加你的 API 配置即可开始使用。
+
+如果你拿到的是源码仓库但没有安装包，请参考下方“本地开发”和“Windows 打包和安装流程”自行构建。
+
 ## 功能概览
 
 - 管理多个 API 配置。

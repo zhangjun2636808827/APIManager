@@ -44,6 +44,8 @@ export interface ProviderConnectionConfig {
   baseUrl: string;
   apiKey: string;
   defaultModel: string;
+  modelListUrl: string;
+  favoriteModels: string[];
   parameters: ChatModelParameters;
 }
 
@@ -91,6 +93,8 @@ export function createEmptyProviderConnection(): ProviderConnectionConfig {
     baseUrl: "",
     apiKey: "",
     defaultModel: "",
+    modelListUrl: "",
+    favoriteModels: [],
     parameters: createDefaultChatParameters(),
   };
 }
@@ -108,7 +112,11 @@ export function cloneProviderConnection(
   config: ProviderConnectionConfig,
 ): ProviderConnectionConfig {
   return {
+    ...createEmptyProviderConnection(),
     ...config,
+    favoriteModels: Array.isArray(config.favoriteModels)
+      ? [...config.favoriteModels]
+      : [],
     parameters: cloneChatParameters(config.parameters),
   };
 }

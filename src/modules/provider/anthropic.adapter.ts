@@ -44,7 +44,7 @@ function buildAnthropicBody(input: ChatRequestInput, stream: boolean) {
   const systemPrompt = parameters.systemPrompt.trim();
 
   return {
-    model: activeProviderConfig.defaultModel,
+    model: input.selectedModel?.trim() || activeProviderConfig.defaultModel,
     max_tokens: parameters.maxTokens,
     temperature: parameters.temperature,
     top_p: parameters.topP,

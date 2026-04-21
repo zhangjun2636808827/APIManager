@@ -17,8 +17,8 @@ function validateChatInput(input: ChatRequestInput) {
     throw new Error("当前 API 未填写 API Key。");
   }
 
-  if (!activeProviderConfig.defaultModel.trim()) {
-    throw new Error("当前 API 未填写默认模型。");
+  if (!(input.selectedModel ?? activeProviderConfig.defaultModel).trim()) {
+    throw new Error("当前 API 未选择可用模型。");
   }
 }
 

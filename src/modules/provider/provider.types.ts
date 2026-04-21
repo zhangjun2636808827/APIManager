@@ -5,6 +5,7 @@ import type { ProviderType } from "@/types/provider";
 export interface ChatRequestInput {
   config: ApiConfig;
   messages: ChatMessage[];
+  selectedModel?: string;
   signal?: AbortSignal;
 }
 
@@ -21,6 +22,7 @@ export interface ConnectionTestResult {
   message: string;
   latencyMs?: number;
   totalMs?: number;
+  firstTokenMs?: number;
   outputChars?: number;
   charsPerSecond?: number;
   prompt?: string;

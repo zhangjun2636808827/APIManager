@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import {
   Copy,
   Database,
@@ -10,6 +10,7 @@ import {
   PlugZap,
   ScanSearch,
   ShieldCheck,
+  Star,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -26,6 +27,7 @@ import {
   type ApiConfigDraft,
   type ApiWebsiteLink,
   type ChatModelParameters,
+  type ProviderConnectionConfig,
 } from "@/types/api-config";
 import { providerOptions } from "@/types/provider";
 
@@ -41,6 +43,12 @@ interface ApiDetailFormProps {
   onChange: (nextValue: ApiConfigDraft) => void;
   onTestConnection: () => void;
   onLoadModels: () => void;
+}
+
+function normalizeFavoriteModels(models: string[]) {
+  return Array.from(
+    new Set(models.map((model) => model.trim()).filter(Boolean)),
+  );
 }
 
 export function ApiDetailForm({
@@ -78,15 +86,12 @@ export function ApiDetailForm({
     });
   }
 
-  function updateActiveProviderField(
-    key: "baseUrl" | "apiKey" | "defaultModel",
-    fieldValue: string,
+  function updateActiveProviderConfig(
+    patch: Partial<ProviderConnectionConfig>,
   ) {
     const nextProviderConfig = {
-      ...(value.providerType === "anthropic"
-        ? value.anthropicConfig
-        : value.openAIConfig),
-      [key]: fieldValue,
+      ...activeProviderConfig,
+      ...patch,
     };
 
     onChange({
@@ -102,24 +107,33 @@ export function ApiDetailForm({
     });
   }
 
-  function updateActiveProviderParameters(parameters: ChatModelParameters) {
-    const nextProviderConfig = {
-      ...(value.providerType === "anthropic"
-        ? value.anthropicConfig
-        : value.openAIConfig),
-      parameters,
-    };
+  function updateActiveProviderField(
+    key: "baseUrl" | "apiKey" | "defaultModel" | "modelListUrl",
+    fieldValue: string,
+  ) {
+    const patch: Partial<ProviderConnectionConfig> = { [key]: fieldValue };
 
-    onChange({
-      ...value,
-      anthropicConfig:
-        value.providerType === "anthropic"
-          ? nextProviderConfig
-          : value.anthropicConfig,
-      openAIConfig:
-        value.providerType === "openai-compatible"
-          ? nextProviderConfig
-          : value.openAIConfig,
+    updateActiveProviderConfig(patch);
+  }
+
+  function updateActiveProviderParameters(parameters: ChatModelParameters) {
+    updateActiveProviderConfig({ parameters });
+  }
+
+  function toggleFavoriteModel(model: string) {
+    const normalizedModel = model.trim();
+
+    if (!normalizedModel) {
+      return;
+    }
+
+    const currentFavorites = activeProviderConfig.favoriteModels ?? [];
+    const isFavorite = currentFavorites.includes(normalizedModel);
+
+    updateActiveProviderConfig({
+      favoriteModels: isFavorite
+        ? currentFavorites.filter((item) => item !== normalizedModel)
+        : normalizeFavoriteModels([...currentFavorites, normalizedModel]),
     });
   }
 
@@ -139,7 +153,7 @@ export function ApiDetailForm({
 
   function getFieldClassName(hasError: boolean) {
     return cn(
-      "h-11 rounded-lg border bg-white px-3 text-sm outline-none transition focus:ring-2",
+      "h-11 min-w-0 rounded-lg border bg-white px-3 text-sm outline-none transition focus:ring-2",
       hasError
         ? "border-red-300 focus:border-red-400 focus:ring-red-100"
         : "border-slate-200 focus:border-slate-400 focus:ring-slate-200",
@@ -224,19 +238,23 @@ export function ApiDetailForm({
     }
   }
 
+  const favoriteModels = activeProviderConfig.favoriteModels ?? [];
+
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-w-0 flex-col">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-slate-900">API 详情</h3>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600 [text-wrap:pretty]">
-            OpenAI 与 Anthropic 配置独立保存；所有修改会自动保存。
+            OpenAI-compatible 与 Anthropic 配置独立保存，所有修改会自动保存。
           </p>
         </div>
-        <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">自动保存</div>
+        <div className="w-fit rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+          自动保存
+        </div>
       </div>
 
-      <div className="mt-6 grid gap-5">
+      <div className="mt-6 grid min-w-0 gap-5">
         <label className="grid gap-2">
           <span className="text-sm font-medium text-slate-800">名称</span>
           <input
@@ -280,12 +298,12 @@ export function ApiDetailForm({
             当前正在编辑 {value.providerType === "anthropic" ? "Anthropic" : "OpenAI-compatible"} 配置
           </div>
           <p className="mt-2 text-xs leading-5 text-slate-500">
-            切换到另一种协议后，会显示并保留那一套独立配置。
+            切换协议后，会显示并保留对应协议的独立连接配置、模型目录地址和收藏模型。
           </p>
         </div>
 
-        <div className="grid gap-5 md:grid-cols-2">
-          <label className="grid gap-2">
+        <div className="grid min-w-0 gap-5 md:grid-cols-2">
+          <label className="grid min-w-0 gap-2">
             <span className="text-sm font-medium text-slate-800">Base URL</span>
             <input
               className={getFieldClassName(Boolean(fieldErrors.activeBaseUrl))}
@@ -306,13 +324,41 @@ export function ApiDetailForm({
             ) : null}
           </label>
 
-          <div className="grid gap-2">
-            <label className="grid gap-2">
-              <span className="flex items-center justify-between gap-3 text-sm font-medium text-slate-800">
-                默认模型
+          <div className="grid min-w-0 gap-2">
+            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end">
+              <label className="grid min-w-0 flex-1 gap-2">
+                <span className="text-sm font-medium text-slate-800">默认模型</span>
+                <input
+                  className={getFieldClassName(Boolean(fieldErrors.activeDefaultModel))}
+                  value={activeProviderConfig.defaultModel}
+                  onChange={(event) =>
+                    updateActiveProviderField("defaultModel", event.target.value)
+                  }
+                  placeholder="gpt-4o-mini / claude-3-5-sonnet-latest"
+                />
+              </label>
+              <div className="flex shrink-0 gap-2 sm:pb-0">
                 <Button
                   type="button"
                   variant="outline"
+                  className="shrink-0 whitespace-nowrap"
+                  onClick={() => toggleFavoriteModel(activeProviderConfig.defaultModel)}
+                  disabled={!activeProviderConfig.defaultModel.trim()}
+                >
+                  <Star
+                    className={cn(
+                      "h-4 w-4",
+                      favoriteModels.includes(activeProviderConfig.defaultModel.trim())
+                        ? "fill-amber-400 text-amber-500"
+                        : "",
+                    )}
+                  />
+                  收藏
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0 whitespace-nowrap"
                   onClick={onLoadModels}
                   disabled={isSaveDisabled || isLoadingModels}
                 >
@@ -323,21 +369,66 @@ export function ApiDetailForm({
                   )}
                   拉取模型
                 </Button>
-              </span>
-              <input
-                className={getFieldClassName(Boolean(fieldErrors.activeDefaultModel))}
-                value={activeProviderConfig.defaultModel}
-                onChange={(event) =>
-                  updateActiveProviderField("defaultModel", event.target.value)
-                }
-                placeholder="gpt-4o-mini / claude-3-5-sonnet-latest"
-              />
-            </label>
+              </div>
+            </div>
             {fieldErrors.activeDefaultModel ? (
               <span className="text-xs text-red-600">
                 {fieldErrors.activeDefaultModel}
               </span>
             ) : null}
+
+            <label className="mt-2 grid min-w-0 gap-2">
+              <span className="text-sm font-medium text-slate-800">模型目录 URL</span>
+              <input
+                className={getFieldClassName(Boolean(fieldErrors.activeModelListUrl))}
+                value={activeProviderConfig.modelListUrl}
+                onChange={(event) =>
+                  updateActiveProviderField("modelListUrl", event.target.value)
+                }
+                placeholder="可选，例如 https://models.github.ai/catalog/models"
+              />
+              {fieldErrors.activeModelListUrl ? (
+                <span className="text-xs text-red-600">
+                  {fieldErrors.activeModelListUrl}
+                </span>
+              ) : null}
+              <span className="text-xs leading-5 text-slate-500">
+                不同 provider 的模型目录规则可能不同。留空时会使用默认 /models；GitHub Models 会自动使用 catalog/models。
+              </span>
+            </label>
+
+            {favoriteModels.length > 0 ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <span className="text-xs font-medium text-amber-800">
+                    已收藏模型
+                  </span>
+                  <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[11px] text-amber-700">
+                    {favoriteModels.length} 个
+                  </span>
+                </div>
+                <div className="flex max-h-28 flex-wrap gap-2 overflow-y-auto">
+                  {favoriteModels.map((model) => (
+                    <button
+                      key={model}
+                      type="button"
+                      className={cn(
+                        "inline-flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition",
+                        activeProviderConfig.defaultModel === model
+                          ? "border-slate-900 bg-slate-900 text-white"
+                          : "border-amber-200 bg-white text-slate-700 hover:bg-amber-100",
+                      )}
+                      title={model}
+                      onClick={() => updateActiveProviderField("defaultModel", model)}
+                    >
+                      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />
+                      <span className="max-w-[18rem] truncate font-mono">{model}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
             {modelSuggestions.length > 0 ? (
               <>
                 <div className="rounded-xl border border-slate-200 bg-white p-2">
@@ -350,26 +441,54 @@ export function ApiDetailForm({
                     </span>
                   </div>
                   <div className="max-h-56 min-w-0 space-y-1 overflow-y-auto pr-1">
-                    {modelSuggestions.map((model) => (
-                      <button
-                        key={model}
-                        type="button"
-                        className={cn(
-                          "flex w-full min-w-0 items-center rounded-lg px-3 py-2 text-left font-mono text-xs transition hover:bg-slate-100",
-                          activeProviderConfig.defaultModel === model
-                            ? "bg-slate-900 text-white hover:bg-slate-900"
-                            : "text-slate-700",
-                        )}
-                        title={model}
-                        onClick={() => updateActiveProviderField("defaultModel", model)}
-                      >
-                        <span className="min-w-0 truncate">{model}</span>
-                      </button>
-                    ))}
+                    {modelSuggestions.map((model) => {
+                      const isFavorite = favoriteModels.includes(model);
+
+                      return (
+                        <div
+                          key={model}
+                          className={cn(
+                            "flex min-w-0 items-center gap-2 rounded-lg transition hover:bg-slate-100",
+                            activeProviderConfig.defaultModel === model
+                              ? "bg-slate-900 text-white hover:bg-slate-900"
+                              : "text-slate-700",
+                          )}
+                        >
+                          <button
+                            type="button"
+                            className="min-w-0 flex-1 px-3 py-2 text-left font-mono text-xs"
+                            title={model}
+                            onClick={() => updateActiveProviderField("defaultModel", model)}
+                          >
+                            <span className="block min-w-0 truncate">{model}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className={cn(
+                              "mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition",
+                              activeProviderConfig.defaultModel === model
+                                ? "hover:bg-white/10"
+                                : "hover:bg-slate-200",
+                            )}
+                            title={isFavorite ? "取消收藏" : "收藏模型"}
+                            onClick={() => toggleFavoriteModel(model)}
+                          >
+                            <Star
+                              className={cn(
+                                "h-4 w-4",
+                                isFavorite
+                                  ? "fill-amber-400 text-amber-500"
+                                  : "text-slate-400",
+                              )}
+                            />
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
                 <span className="text-xs leading-5 text-slate-500">
-                  模型列表固定在表单内部滚动，长模型名会省略显示，悬停可查看完整名称。
+                  点击模型名称会设为默认模型；点击星标可以收藏或取消收藏，聊天页会展示收藏模型用于快速切换。
                 </span>
               </>
             ) : null}
@@ -460,7 +579,7 @@ export function ApiDetailForm({
             className={getTextareaClassName(false)}
             value={value.aiDescription}
             onChange={(event) => updateField("aiDescription", event.target.value)}
-            placeholder="后续测试连接时，可由模型自我介绍并自动填入这里。"
+            placeholder="测试连接时可由模型自我介绍，并自动填写到这里。"
           />
           <span className="text-xs leading-5 text-slate-500">
             用于记录该 API 或模型的能力、适用场景、限制和使用建议。
@@ -489,10 +608,22 @@ export function ApiDetailForm({
       <div className="mt-5 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h4 className="text-sm font-semibold text-slate-900">连接测试</h4>
-          <p className="mt-1 text-xs leading-5 text-slate-500">测试当前配置是否可用，并尝试获取一次模型自我介绍。</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            不再请求模型目录，直接通过一次聊天请求获取模型自我介绍，并记录耗时、输出长度和速度。
+          </p>
         </div>
-        <Button type="button" variant="outline" onClick={onTestConnection} disabled={isSaveDisabled || isTestingConnection}>
-          {isTestingConnection ? (<LoaderCircle className="h-4 w-4 animate-spin" />) : (<PlugZap className="h-4 w-4" />)}
+        <Button
+          type="button"
+          variant="outline"
+          className="shrink-0 whitespace-nowrap"
+          onClick={onTestConnection}
+          disabled={isSaveDisabled || isTestingConnection}
+        >
+          {isTestingConnection ? (
+            <LoaderCircle className="h-4 w-4 animate-spin" />
+          ) : (
+            <PlugZap className="h-4 w-4" />
+          )}
           测试连接
         </Button>
       </div>
@@ -522,7 +653,7 @@ export function ApiDetailForm({
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-4">
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-              <p className="text-xs text-slate-500">连接阶段</p>
+              <p className="text-xs text-slate-500">首包估算</p>
               <p className="mt-1 font-mono text-sm font-semibold text-slate-900">
                 {value.lastBenchmark.latencyMs} ms
               </p>

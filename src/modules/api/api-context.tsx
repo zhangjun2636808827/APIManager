@@ -64,12 +64,16 @@ const initialApiConfigs: ApiConfig[] = [
       baseUrl: "https://api.example.com/v1",
       apiKey: "",
       defaultModel: "gpt-4o-mini",
+      modelListUrl: "",
+      favoriteModels: ["gpt-4o-mini"],
       parameters: createDefaultChatParameters(),
     },
     anthropicConfig: {
       baseUrl: "https://api.minimaxi.com/anthropic",
       apiKey: "",
       defaultModel: "MiniMax-M1",
+      modelListUrl: "",
+      favoriteModels: ["MiniMax-M1"],
       parameters: createDefaultChatParameters(),
     },
     createdAt: "2026-04-20T09:00:00.000Z",
@@ -95,6 +99,8 @@ const initialApiConfigs: ApiConfig[] = [
       baseUrl: "https://api.anthropic.com",
       apiKey: "",
       defaultModel: "claude-3-5-sonnet-latest",
+      modelListUrl: "",
+      favoriteModels: ["claude-3-5-sonnet-latest"],
       parameters: createDefaultChatParameters(),
     },
     createdAt: "2026-04-20T09:05:00.000Z",
@@ -128,6 +134,16 @@ function migrateProviderConfig(
       typeof data.defaultModel === "string"
         ? data.defaultModel
         : fallback?.defaultModel ?? "",
+    modelListUrl:
+      typeof data.modelListUrl === "string"
+        ? data.modelListUrl
+        : fallback?.modelListUrl ?? "",
+    favoriteModels: Array.isArray(data.favoriteModels)
+      ? data.favoriteModels
+          .filter((model): model is string => typeof model === "string")
+          .map((model) => model.trim())
+          .filter(Boolean)
+      : fallback?.favoriteModels ?? [],
     parameters: migrateChatParameters(data.parameters ?? fallback?.parameters),
   };
 }
@@ -226,6 +242,11 @@ function migrateApiConfig(value: unknown): ApiConfig | null {
     apiKey: typeof record.apiKey === "string" ? record.apiKey : "",
     defaultModel:
       typeof record.defaultModel === "string" ? record.defaultModel : "",
+    modelListUrl: "",
+    favoriteModels:
+      typeof record.defaultModel === "string" && record.defaultModel.trim()
+        ? [record.defaultModel.trim()]
+        : [],
   };
 
   return {

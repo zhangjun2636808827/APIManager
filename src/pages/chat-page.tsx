@@ -1,6 +1,14 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Eraser, LoaderCircle, MessageSquareText, Plus, Settings2, Square } from "lucide-react";
+import {
+  Eraser,
+  LoaderCircle,
+  MessageSquareText,
+  Plus,
+  Settings2,
+  Square,
+  Star,
+} from "lucide-react";
 
 import { CurrentApiSummary } from "@/components/api/current-api-summary";
 import { ChatSessionList } from "@/components/chat/chat-session-list";
@@ -67,6 +75,9 @@ export function ChatPage() {
   const [activeSessionIds, setActiveSessionIds] = useState(
     initialChatState.activeSessionIds,
   );
+  const [selectedModelsByApi, setSelectedModelsByApi] = useState<
+    Record<string, string>
+  >({});
   const [isSending, setIsSending] = useState(false);
   const messageEndRef = useRef<HTMLDivElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -82,6 +93,11 @@ export function ChatPage() {
   const activeSession =
     sessions.find((session) => session.id === activeSessionId) ?? null;
   const messages = activeSession?.messages ?? [];
+  const favoriteModels = activeProviderConfig?.favoriteModels ?? [];
+  const selectedChatModel =
+    selectedApiId && selectedModelsByApi[selectedApiId]
+      ? selectedModelsByApi[selectedApiId]
+      : favoriteModels[0] || activeProviderConfig?.defaultModel || "";
 
   useEffect(() => {
     persistChatStorageState({
@@ -111,6 +127,34 @@ export function ChatPage() {
       [selectedApiId]: nextSession.id,
     }));
   }, [selectedApiId, sessions.length]);
+
+  useEffect(() => {
+    if (!selectedApiId || !activeProviderConfig) {
+      return;
+    }
+
+    const currentModel = selectedModelsByApi[selectedApiId];
+    const usableModels =
+      favoriteModels.length > 0
+        ? favoriteModels
+        : activeProviderConfig.defaultModel
+          ? [activeProviderConfig.defaultModel]
+          : [];
+
+    if (usableModels.length === 0 || usableModels.includes(currentModel)) {
+      return;
+    }
+
+    setSelectedModelsByApi((current) => ({
+      ...current,
+      [selectedApiId]: usableModels[0],
+    }));
+  }, [
+    activeProviderConfig,
+    favoriteModels,
+    selectedApiId,
+    selectedModelsByApi,
+  ]);
 
   useEffect(() => {
     if (!selectedApiId || !sessions.length) {
@@ -339,6 +383,7 @@ export function ChatPage() {
       const requestInput = {
         config: selectedApi,
         messages: [...activeSession.messages, userMessage],
+        selectedModel: selectedChatModel,
         signal: abortController.signal,
       };
 
@@ -479,7 +524,7 @@ export function ChatPage() {
                 <CardTitle>聊天窗口</CardTitle>
                 <CardDescription>
                   当前 API 是 <span className="font-medium text-slate-900">{selectedApi.name}</span>。
-                  当前协议会读取对应的独立连接配置。
+                  当前协议会读取对应的独立连接配置，聊天时可在收藏模型中切换。
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
@@ -514,10 +559,34 @@ export function ChatPage() {
                 </p>
               </div>
               <div className="min-w-0">
-                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">默认模型</p>
-                <p className="mt-1 truncate font-medium text-slate-900" title={activeProviderConfig?.defaultModel || "未填写"}>
-                  {activeProviderConfig?.defaultModel || "未填写"}
-                </p>
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">聊天模型</p>
+                {favoriteModels.length > 0 ? (
+                  <select
+                    className="mt-1 h-9 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-2 font-mono text-xs font-medium text-slate-900 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+                    value={selectedChatModel}
+                    title={selectedChatModel || "未选择"}
+                    onChange={(event) => {
+                      if (!selectedApiId) {
+                        return;
+                      }
+
+                      setSelectedModelsByApi((current) => ({
+                        ...current,
+                        [selectedApiId]: event.target.value,
+                      }));
+                    }}
+                  >
+                    {favoriteModels.map((model) => (
+                      <option key={model} value={model}>
+                        {model}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="mt-1 truncate font-medium text-slate-900" title={selectedChatModel || "未填写"}>
+                    {selectedChatModel || "未填写"}
+                  </p>
+                )}
               </div>
               <div className="min-w-0">
                 <p className="text-xs uppercase tracking-[0.16em] text-slate-500">当前协议</p>
@@ -529,6 +598,17 @@ export function ChatPage() {
                 <p className="text-xs uppercase tracking-[0.16em] text-slate-500">参数摘要</p>
                 <p className="mt-1 truncate font-medium text-slate-900">
                   Temp {activeProviderConfig?.parameters.temperature ?? "-"} · Top P {activeProviderConfig?.parameters.topP ?? "-"} · Max Tokens {activeProviderConfig?.parameters.maxTokens ?? "-"} · {activeProviderConfig?.parameters.stream ? "流式输出" : "非流式输出"}
+                </p>
+              </div>
+              <div className="min-w-0 md:col-span-3">
+                <p className="flex items-center gap-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+                  <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />
+                  收藏模型
+                </p>
+                <p className="mt-1 truncate text-xs text-slate-600">
+                  {favoriteModels.length > 0
+                    ? `已收藏 ${favoriteModels.length} 个模型，可在上方切换。`
+                    : "还没有收藏模型，当前会使用默认模型。可到 API 管理页拉取模型并点击星标收藏。"}
                 </p>
               </div>
             </div>

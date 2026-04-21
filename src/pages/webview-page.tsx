@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ExternalLink,
@@ -21,7 +21,20 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useApiContext } from "@/modules/api/api-context";
-import { getPrimaryWebsiteUrl, type ApiWebsiteLink } from "@/types/api-config";
+import {
+  getPrimaryWebsiteUrl,
+  type ApiWebsiteLink,
+  type WebsiteLinkType,
+} from "@/types/api-config";
+
+const websiteLinkTypeLabels: Record<WebsiteLinkType, string> = {
+  console: "控制台",
+  billing: "账单页",
+  usage: "用量页",
+  models: "模型页",
+  docs: "文档页",
+  custom: "自定义",
+};
 
 function isValidHttpUrl(value: string) {
   try {
@@ -36,8 +49,12 @@ function getConsoleWindowLabel(apiId: string) {
   return `provider-console-${apiId.replace(/[^a-zA-Z0-9-_:]/g, "-")}`;
 }
 
-function getLinkLabel(link: ApiWebsiteLink) {
-  return link.label.trim() || "未命名链接";
+function getLinkTypeLabel(link: ApiWebsiteLink) {
+  if (link.type === "custom") {
+    return link.label.trim() || "自定义";
+  }
+
+  return websiteLinkTypeLabels[link.type] ?? "链接";
 }
 
 export function WebviewPage() {
@@ -62,7 +79,7 @@ export function WebviewPage() {
       ? [
           {
             id: "legacy-website-url",
-            label: "控制台",
+            label: "",
             url: primaryUrl,
             type: "console" as const,
           },
@@ -128,7 +145,7 @@ export function WebviewPage() {
 
     const providerWindow = new WebviewWindow(label, {
       url: frameUrl,
-      title: `${selectedApi.name} 控制台`,
+      title: `${selectedApi.name} ${selectedLink ? getLinkTypeLabel(selectedLink) : "网页"}`,
       width: 1280,
       height: 860,
       minWidth: 980,
@@ -216,7 +233,7 @@ export function WebviewPage() {
                     onClick={() => setSelectedLinkId(link.id)}
                   >
                     <span className="block truncate font-medium">
-                      {getLinkLabel(link)}
+                      {getLinkTypeLabel(link)}
                     </span>
                     <span className="mt-1 block truncate font-mono text-xs opacity-75">
                       {link.url || "未填写网址"}
@@ -278,6 +295,11 @@ export function WebviewPage() {
               <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
                 当前网址
               </p>
+              {selectedLink ? (
+                <p className="mt-2 text-sm font-medium text-slate-900">
+                  {getLinkTypeLabel(selectedLink)}
+                </p>
+              ) : null}
               <p
                 className="mt-2 truncate font-mono text-sm text-slate-900"
                 title={frameUrl || "未填写"}

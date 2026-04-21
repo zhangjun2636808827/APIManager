@@ -1,10 +1,11 @@
-import { getActiveProviderConfig, type ApiConfigDraft } from "@/types/api-config";
+﻿import { getActiveProviderConfig, type ApiConfigDraft } from "@/types/api-config";
 
 export interface ApiDraftFieldErrors {
   name?: string;
   activeBaseUrl?: string;
   activeApiKey?: string;
   activeDefaultModel?: string;
+  activeModelListUrl?: string;
   websiteUrl?: string;
   websiteLinks?: string;
   maxTokens?: string;
@@ -46,6 +47,13 @@ export function validateApiDraft(
 
   if (!activeProviderConfig.defaultModel.trim()) {
     fieldErrors.activeDefaultModel = "当前协议的默认模型不能为空。";
+  }
+
+  if (
+    activeProviderConfig.modelListUrl.trim() &&
+    !isValidHttpUrl(activeProviderConfig.modelListUrl.trim())
+  ) {
+    fieldErrors.activeModelListUrl = "模型目录 URL 必须是有效的 http 或 https 地址。";
   }
 
   if (draft.websiteUrl.trim() && !isValidHttpUrl(draft.websiteUrl.trim())) {

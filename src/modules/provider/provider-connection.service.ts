@@ -1,10 +1,6 @@
-import { formatUnknownError } from "@/lib/errors";
 import { getProviderAdapter } from "@/modules/provider/provider-registry";
 import type { ConnectionTestResult } from "@/modules/provider/provider.types";
-import {
-  getActiveProviderConfig,
-  type ApiConfig,
-} from "@/types/api-config";
+import { getActiveProviderConfig, type ApiConfig } from "@/types/api-config";
 import type { ChatMessage } from "@/types/chat";
 
 function buildBenchmarkPrompt(config: ApiConfig) {
@@ -43,117 +39,80 @@ function roundMetric(value: number) {
   return Math.round(value * 100) / 100;
 }
 
-function isOverloadedError(error: unknown) {
-  const message = formatUnknownError(error);
-  return /overloaded|529/i.test(message);
-}
-
-function buildBenchmarkMessage(
-  basicMessage: string,
+function buildResultMessage(
   totalMs: number,
   outputChars: number,
   charsPerSecond: number,
+  firstTokenMs?: number,
 ) {
   return [
-    basicMessage,
+    "测试成功：聊天接口已响应，并返回模型档案。",
+    firstTokenMs ? `首段返回：${Math.round(firstTokenMs)} ms` : null,
     `回复耗时：${Math.round(totalMs)} ms`,
     `输出长度：${outputChars} 字符`,
     `输出速度：${roundMetric(charsPerSecond)} 字符/秒`,
-  ].join("\n");
-}
-
-function buildBenchmarkSkippedResult(
-  config: ApiConfig,
-  basicResult: ConnectionTestResult,
-  basicStartTime: number,
-  error: unknown,
-): ConnectionTestResult {
-  const message = formatUnknownError(error);
-  const overloaded = isOverloadedError(error);
-
-  return {
-    ...basicResult,
-    ok: true,
-    message: overloaded
-      ? `${basicResult.message}\n连接可用，但模型档案测试阶段遇到 provider 过载，稍后可重新测试。`
-      : `${basicResult.message}\n连接可用，但模型档案测试请求失败：${message}`,
-    latencyMs: Math.round(performance.now() - basicStartTime),
-    totalMs: 0,
-    outputChars: 0,
-    charsPerSecond: 0,
-    prompt: buildBenchmarkPrompt(config),
-    responsePreview: "",
-    qualitySummary: overloaded
-      ? "连接测试通过；模型档案测试阶段返回 529 overloaded。"
-      : "连接测试通过；模型档案测试失败，不影响该 API 的基础可用性。",
-  };
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export async function testProviderConnection(
   config: ApiConfig,
 ): Promise<ConnectionTestResult> {
   const adapter = getProviderAdapter(config.providerType);
-  const basicStartTime = performance.now();
+  const activeProviderConfig = getActiveProviderConfig(config);
+  const prompt = buildBenchmarkPrompt(config);
+  const benchmarkMessage = createBenchmarkMessage(config);
+  const startTime = performance.now();
+  let firstTokenMs: number | undefined;
+  let content = "";
 
-  let basicResult: ConnectionTestResult;
+  const requestInput = {
+    config,
+    selectedModel: activeProviderConfig.defaultModel,
+    messages: [benchmarkMessage],
+  };
 
-  try {
-    basicResult = await adapter.testConnection({
-      config,
-      messages: [],
+  if (activeProviderConfig.parameters.stream) {
+    const response = await adapter.streamMessage(requestInput, {
+      onText: (text) => {
+        if (firstTokenMs === undefined && text.trim()) {
+          firstTokenMs = performance.now() - startTime;
+        }
+
+        content += text;
+      },
     });
-  } catch (error) {
-    if (isOverloadedError(error)) {
-      return {
-        ok: false,
-        message:
-          "服务当前过载，测试请求被 provider 拒绝。你的配置不一定有问题；如果聊天可用，可以稍后再测试连接。",
-        latencyMs: Math.round(performance.now() - basicStartTime),
-        totalMs: 0,
-        outputChars: 0,
-        charsPerSecond: 0,
-        prompt: buildBenchmarkPrompt(config),
-        responsePreview: "",
-        qualitySummary: "Provider 返回 529 overloaded，建议稍后重试。",
-      };
-    }
 
-    throw error;
+    content = content.trim() || response.content;
+  } else {
+    const response = await adapter.sendMessage(requestInput);
+
+    content = response.content;
   }
 
-  const benchmarkStartTime = performance.now();
+  const endTime = performance.now();
+  const totalMs = Math.max(endTime - startTime, 1);
+  const outputChars = content.length;
+  const charsPerSecond = outputChars / (totalMs / 1000);
 
-  try {
-    const benchmarkResponse = await adapter.sendMessage({
-      config,
-      messages: [createBenchmarkMessage(config)],
-    });
-    const benchmarkEndTime = performance.now();
-    const latencyMs = benchmarkStartTime - basicStartTime;
-    const totalMs = benchmarkEndTime - benchmarkStartTime;
-    const outputChars = benchmarkResponse.content.length;
-    const charsPerSecond =
-      totalMs > 0 ? outputChars / (totalMs / 1000) : outputChars;
-
-    return {
-      ...basicResult,
-      message: buildBenchmarkMessage(
-        basicResult.message,
-        totalMs,
-        outputChars,
-        charsPerSecond,
-      ),
-      latencyMs: Math.round(latencyMs),
-      totalMs: Math.round(totalMs),
+  return {
+    ok: true,
+    message: buildResultMessage(
+      totalMs,
       outputChars,
-      charsPerSecond: roundMetric(charsPerSecond),
-      prompt: buildBenchmarkPrompt(config),
-      responsePreview: benchmarkResponse.content.slice(0, 300),
-      selfIntroduction: benchmarkResponse.content,
-      qualitySummary:
-        "模型已按固定提示返回模型档案，可结合耗时、能力描述和限制判断是否适合当前用途。",
-    };
-  } catch (error) {
-    return buildBenchmarkSkippedResult(config, basicResult, basicStartTime, error);
-  }
+      charsPerSecond,
+      firstTokenMs,
+    ),
+    latencyMs: firstTokenMs ? Math.round(firstTokenMs) : Math.round(totalMs),
+    totalMs: Math.round(totalMs),
+    firstTokenMs: firstTokenMs ? Math.round(firstTokenMs) : undefined,
+    outputChars,
+    charsPerSecond: roundMetric(charsPerSecond),
+    prompt,
+    responsePreview: content.slice(0, 300),
+    selfIntroduction: content,
+    qualitySummary:
+      "模型已按固定提示返回模型档案。可结合耗时、输出速度、能力描述和限制判断是否适合当前用途。",
+  };
 }

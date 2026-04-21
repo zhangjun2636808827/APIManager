@@ -82,6 +82,13 @@ function base64ToBytes(value: string) {
   return bytes;
 }
 
+function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+
+  return copy.buffer;
+}
+
 async function deriveEncryptionKey(
   password: string,
   salt: Uint8Array,
@@ -98,7 +105,7 @@ async function deriveEncryptionKey(
   return crypto.subtle.deriveKey(
     {
       name: "PBKDF2",
-      salt,
+      salt: bytesToArrayBuffer(salt),
       iterations,
       hash: "SHA-256",
     },
@@ -164,6 +171,14 @@ function normalizeProviderConfig(value: unknown): ProviderConnectionConfig {
     apiKey: typeof record.apiKey === "string" ? record.apiKey : "",
     defaultModel:
       typeof record.defaultModel === "string" ? record.defaultModel : "",
+    modelListUrl:
+      typeof record.modelListUrl === "string" ? record.modelListUrl : "",
+    favoriteModels: Array.isArray(record.favoriteModels)
+      ? record.favoriteModels
+          .filter((model): model is string => typeof model === "string")
+          .map((model) => model.trim())
+          .filter(Boolean)
+      : [],
     parameters: {
       ...fallback.parameters,
       ...(record.parameters && typeof record.parameters === "object"
@@ -245,10 +260,10 @@ export async function buildEncryptedExportText(
     await crypto.subtle.encrypt(
       {
         name: "AES-GCM",
-        iv,
+        iv: bytesToArrayBuffer(iv),
       },
       key,
-      new TextEncoder().encode(plainText),
+      bytesToArrayBuffer(new TextEncoder().encode(plainText)),
     ),
   );
   const payload: EncryptedApiExportFile = {
@@ -293,10 +308,10 @@ async function decryptPayload(file: EncryptedApiExportFile, password: string) {
     const decrypted = await crypto.subtle.decrypt(
       {
         name: "AES-GCM",
-        iv,
+        iv: bytesToArrayBuffer(iv),
       },
       key,
-      encryptedBytes,
+      bytesToArrayBuffer(encryptedBytes),
     );
 
     return new TextDecoder().decode(decrypted);

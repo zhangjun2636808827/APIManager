@@ -1,4 +1,4 @@
-﻿import { fetch } from "@tauri-apps/plugin-http";
+import { fetch } from "@tauri-apps/plugin-http";
 
 import { buildNetworkErrorMessage } from "@/lib/errors";
 import { readSseStream } from "@/modules/provider/streaming";
@@ -15,7 +15,7 @@ import { getActiveProviderConfig } from "@/types/api-config";
 async function fetchOpenAIModels(
   requestUrl: string,
   apiKey: string,
-): Promise<{ data?: Array<{ id?: string }> }> {
+): Promise<unknown> {
   let response: Response;
 
   try {
@@ -38,48 +38,64 @@ async function fetchOpenAIModels(
     );
   }
 
-  return (await response.json()) as {
-    data?: Array<{ id?: string }>;
-  };
+  return response.json();
 }
 
-async function probeOpenAIChat(
-  requestUrl: string,
-  model: string,
-  apiKey: string,
-): Promise<void> {
-  let response: Response;
+function buildOpenAIModelsUrl(baseUrl: string, modelListUrl: string) {
+  if (modelListUrl.trim()) {
+    return modelListUrl.trim();
+  }
 
   try {
-    response = await fetch(requestUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 1,
-        messages: [
-          {
-            role: "user",
-            content: "ping",
-          },
-        ],
-      }),
-    });
-  } catch (error) {
-    throw new Error(
-      buildNetworkErrorMessage("OpenAI-compatible", requestUrl, error),
-    );
+    const url = new URL(baseUrl);
+
+    if (url.hostname === "models.github.ai") {
+      return "https://models.github.ai/catalog/models";
+    }
+  } catch {
+    // Keep the default fallback below for incomplete URLs while the user edits.
   }
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      errorText || `OpenAI-compatible 聊天探测失败，状态码 ${response.status}`,
-    );
+  return `${baseUrl.replace(/\/$/, "")}/models`;
+}
+
+function collectModelIds(value: unknown): string[] {
+  const models = new Set<string>();
+
+  function visit(item: unknown) {
+    if (!item || typeof item !== "object") {
+      return;
+    }
+
+    const record = item as Record<string, unknown>;
+
+    for (const key of ["id", "name", "model", "modelId"]) {
+      const candidate = record[key];
+
+      if (typeof candidate === "string" && candidate.trim()) {
+        models.add(candidate.trim());
+        return;
+      }
+    }
   }
+
+  if (Array.isArray(value)) {
+    value.forEach(visit);
+  } else if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+
+    if (Array.isArray(record.data)) {
+      record.data.forEach(visit);
+    }
+    if (Array.isArray(record.models)) {
+      record.models.forEach(visit);
+    }
+    if (Array.isArray(record.items)) {
+      record.items.forEach(visit);
+    }
+  }
+
+  return [...models];
 }
 
 function getOpenAITextDelta(data: unknown) {
@@ -120,7 +136,7 @@ function buildOpenAIChatBody(input: ChatRequestInput, stream: boolean) {
   const parameters = activeProviderConfig.parameters;
 
   return {
-    model: activeProviderConfig.defaultModel,
+    model: input.selectedModel?.trim() || activeProviderConfig.defaultModel,
     ...(stream ? { stream: true } : {}),
     temperature: parameters.temperature,
     top_p: parameters.topP,
@@ -231,55 +247,24 @@ export const openAICompatibleAdapter: ProviderAdapter = {
   },
 
   async testConnection(input: ChatRequestInput): Promise<ConnectionTestResult> {
-    const activeProviderConfig = getActiveProviderConfig(input.config);
-    const modelsUrl = `${activeProviderConfig.baseUrl.replace(/\/$/, "")}/models`;
-    const chatUrl = `${activeProviderConfig.baseUrl.replace(/\/$/, "")}/chat/completions`;
-
-    try {
-      const data = await fetchOpenAIModels(modelsUrl, activeProviderConfig.apiKey);
-      const modelCount = data.data?.length ?? 0;
-      const firstModel = data.data?.[0]?.id;
-
-      return {
-        ok: true,
-        message:
-          modelCount > 0
-            ? `连接成功，已获取 ${modelCount} 个模型。当前可见模型示例：${firstModel ?? activeProviderConfig.defaultModel}`
-            : "连接成功，接口已响应。",
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const shouldFallback = /404|not found|page not found/i.test(errorMessage);
-
-      if (!shouldFallback) {
-        throw error;
-      }
-    }
-
-    await probeOpenAIChat(
-      chatUrl,
-      activeProviderConfig.defaultModel,
-      activeProviderConfig.apiKey,
-    );
-
     return {
       ok: true,
-      message:
-        "连接成功。该服务未提供 /models，但聊天接口已通过最小请求探测，当前配置可以用于对话。",
+      message: "连接成功，聊天接口已响应。",
     };
   },
 
   async listModels(input: ChatRequestInput): Promise<ModelListResult> {
     const activeProviderConfig = getActiveProviderConfig(input.config);
-    const requestUrl = `${activeProviderConfig.baseUrl.replace(/\/$/, "")}/models`;
+    const requestUrl = buildOpenAIModelsUrl(
+      activeProviderConfig.baseUrl,
+      activeProviderConfig.modelListUrl,
+    );
 
     try {
       const data = await fetchOpenAIModels(requestUrl, activeProviderConfig.apiKey);
 
       return {
-        models: (data.data ?? [])
-          .map((item) => item.id?.trim() ?? "")
-          .filter(Boolean),
+        models: collectModelIds(data),
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);

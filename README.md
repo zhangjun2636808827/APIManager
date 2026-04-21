@@ -6,15 +6,15 @@ API Manager 是一个基于 Tauri 2、React、TypeScript、Tailwind CSS 和 Tail
 
 ### API 管理
 
-![API 管理页](image/1.png)
+![API 管理页](image/111.png)
 
 ### 聊天
 
-![聊天页](image/2.png)
+![聊天页](image/222.png)
 
 ### 内置网页
 
-![内置网页页](image/3.png)
+![内置网页页](image/333.png)
 
 ## 快速开始
 

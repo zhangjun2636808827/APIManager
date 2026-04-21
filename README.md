@@ -30,6 +30,45 @@ API Manager_0.1.0_x64-setup.exe
 
 如果你拿到的是源码仓库但没有安装包，请参考下方“本地开发”和“Windows 打包和安装流程”自行构建。
 
+## 免费 API 参考
+
+下面整理了一些可以免费试用或提供免费额度的大模型 API 平台，适合首次配置 API Manager 时快速体验。免费额度、模型列表和访问规则可能会变化，实际使用前请以各平台官网最新说明为准。
+
+### 国内平台
+
+| 平台 | API 地址 | 免费额度 | 特点 | 限制 |
+| --- | --- | --- | --- | --- |
+| 智谱 AI | `open.bigmodel.cn` | 新用户 2000 万 Token | GLM-4-Flash 永久免费 | 并发 30 |
+| 月之暗面 Kimi | `platform.moonshot.cn` | 3 次/分钟，不限 Token 总量 | 256K 超长上下文 | 3 RPM |
+| 硅基流动 | `api.siliconflow.cn` | 1000 RPM/模型 | DeepSeek / Qwen3 支持 | 每模型独立计量 |
+| OpenRouter | `openrouter.ai` | 50 次/天免费 | 国内直连，模型多 | 免费版限制较多 |
+| ModelScope 魔搭 | `modelscope.cn` | 2000 次/天 | 多模态、深度推理 | 限 200 次/天 |
+| 阿里通义千问 | `bailian.console.aliyun.com` | 新用户测试额度 | Qwen3 系列 | 需申请 |
+| 百度文心 | `cloud.baidu.com` | 需申请 | 数理逻辑强 | 需预约 |
+| 腾讯混元 | `cloud.tencent.com` | 新用户测试额度 | 数学方向强 | 需申请 |
+| 字节豆包 | `volcengine.com` | 新用户测试额度 | 多模态，价格低 | 需申请 |
+| 讯飞星火 | `xinghuo.xfyun.cn` | 新用户测试额度 | 联网搜索，绘图 | 需申请 |
+| Intern AI | `chat.intern-ai.org.cn` | 10 RPM | InternVL3-78B | 密钥 6 个月有效 |
+
+### 国际平台
+
+| 平台 | API 地址 | 免费额度 | 特点 | 需要魔法 |
+| --- | --- | --- | --- | --- |
+| Google AI Studio | `generativelanguage.googleapis.com` | Gemini 2.5 Flash: 30 RPM / 1440 RPD | 多模态，性能强 | ✅ |
+| GitHub Models | `models.github.ai` | 15 RPM / 150 RPD | GPT-4.1 / 4o，GitHub 账户即用 | ❌ |
+| HuggingFace | `huggingface.co` | 每月可变积分 | 开源模型宝库 | 部分需要 |
+| Groq | `groq.com` | 1000 次/天 | LPU 超快推理 | ✅ |
+| Cloudflare Workers AI | `developers.cloudflare.com` | 10000 Neurons/天 | 全球 CDN 加速 | ❌ |
+| NVIDIA NIM | `integrate.api.nvidia.com` | 开发者计划免费 | DeepSeek-v3.2 | ✅ |
+| Mistral | `console.mistral.ai` | 1 req/s，500K tokens/min | 欧洲高性能模型 | ✅ |
+| Cerebras | `inference.cerebras.ai` | 30 RPM，60K tokens/min | 极速推理，需等待列表 | ✅ |
+| Scaleway Generative | `scaleway.com` | 100 RPM，200K tokens/min | 免费测试中 | ✅ |
+| OVH AI Endpoints | `endpoints.ai.cloud.ovh.net` | 12 RPM | 开源模型 | ✅ |
+| Together Free | `together.ai` | Meta-Llama 系列 | 无具体限制说明 | ✅ |
+| Fireworks AI | `fireworks.ai` | 免费 $1 积分 | 高并发支持 | ✅ |
+| AI21 Labs | `ai21.com` | $10 积分，无需信用卡 | Jamba 系列 | ✅ |
+| Cohere | `api.cohere.ai` | 20 RPM | command-a 系列 | ✅ |
+
 ## 功能概览
 
 - 管理多个 API 配置。

@@ -1,6 +1,14 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ExternalLink, Globe, RefreshCcw, Settings2 } from "lucide-react";
+import {
+  ExternalLink,
+  Globe,
+  MonitorUp,
+  RefreshCcw,
+  Settings2,
+} from "lucide-react";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { open } from "@tauri-apps/plugin-shell";
 
 import { CurrentApiSummary } from "@/components/api/current-api-summary";
 import { PageHeader } from "@/components/common/page-header";
@@ -13,7 +21,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useApiContext } from "@/modules/api/api-context";
-import { open } from "@tauri-apps/plugin-shell";
 
 function isValidHttpUrl(value: string) {
   try {
@@ -22,6 +29,10 @@ function isValidHttpUrl(value: string) {
   } catch {
     return false;
   }
+}
+
+function getConsoleWindowLabel(apiId: string) {
+  return `provider-console-${apiId.replace(/[^a-zA-Z0-9-_:]/g, "-")}`;
 }
 
 export function WebviewPage() {
@@ -58,12 +69,40 @@ export function WebviewPage() {
     await open(frameUrl);
   }
 
+  async function handleOpenInAppWindow() {
+    if (!selectedApi || !hasValidWebsiteUrl) {
+      return;
+    }
+
+    const label = getConsoleWindowLabel(selectedApi.id);
+    const existingWindow = await WebviewWindow.getByLabel(label);
+
+    if (existingWindow) {
+      await existingWindow.close();
+    }
+
+    const providerWindow = new WebviewWindow(label, {
+      url: frameUrl,
+      title: `${selectedApi.name} 控制台`,
+      width: 1280,
+      height: 860,
+      minWidth: 980,
+      minHeight: 680,
+      resizable: true,
+      center: true,
+    });
+
+    providerWindow.once("tauri://error", (event) => {
+      console.error("创建应用内网页窗口失败", event.payload);
+    });
+  }
+
   if (!selectedApi) {
     return (
       <section className="w-full">
         <PageHeader
           title="内置网页页"
-          description="内置网页页会读取当前选中的 API，并尝试展示该配置中的站点网址。开始前，请先在 API 管理页选中一个配置。"
+          description="内置网页页读取当前 API 的站点网址。开始前，请先选择一个配置。"
         />
 
         <Card className="min-h-[420px]">
@@ -75,7 +114,7 @@ export function WebviewPage() {
               还没有当前 API
             </h3>
             <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
-              这个页面不会自己维护目标网址，它依赖当前选中的 API 配置。请先去 API 管理页选择一个 API。
+              这个页面依赖当前 API 的网站网址。请先去 API 管理页选择配置。
             </p>
             <div className="mt-6">
               <Link to="/api-management">
@@ -95,7 +134,7 @@ export function WebviewPage() {
     <section className="w-full">
       <PageHeader
         title="内置网页页"
-        description="这里现在会直接读取当前选中 API 的站点网址，并在应用内加载网页。适合查看控制台、额度、用量或帮助文档。"
+        description="在应用内加载当前 API 的控制台、额度、用量或帮助页面。"
       />
 
       <div className="grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
@@ -103,7 +142,7 @@ export function WebviewPage() {
           <CardHeader>
             <CardTitle>当前 API</CardTitle>
             <CardDescription>
-              内置网页页和聊天页一样，都只依赖全局当前选中的 API。
+              与聊天页一致，只依赖全局当前 API。
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -124,13 +163,21 @@ export function WebviewPage() {
               <div>
                 <CardTitle>内置网页容器</CardTitle>
                 <CardDescription>
-                  当前目标网址来自所选 API 的 `websiteUrl` 字段。这个区域会在应用内直接加载网页内容。
+                  目标网址来自当前 API 的网站网址字段。
                 </CardDescription>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button variant="outline" onClick={handleReload} disabled={!hasValidWebsiteUrl}>
                   <RefreshCcw className="h-4 w-4" />
                   刷新网页
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleOpenInAppWindow}
+                  disabled={!hasValidWebsiteUrl}
+                >
+                  <MonitorUp className="h-4 w-4" />
+                  应用内窗口打开
                 </Button>
                 <Button
                   type="button"
@@ -139,14 +186,14 @@ export function WebviewPage() {
                   disabled={!hasValidWebsiteUrl}
                 >
                   <ExternalLink className="h-4 w-4" />
-                  浏览器打开
+                  系统浏览器打开
                 </Button>
               </div>
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-xs uppercase tracking-[0.18em] text-slate-500">当前网址</p>
-              <p className="mt-2 break-all text-sm text-slate-900">
+              <p className="mt-2 truncate font-mono text-sm text-slate-900" title={websiteUrl || "未填写"}>
                 {websiteUrl || "未填写"}
               </p>
               {hasWebsiteUrl && !hasValidWebsiteUrl ? (
@@ -158,7 +205,7 @@ export function WebviewPage() {
                 <p className="mt-3 text-sm text-slate-600">
                   {loadState === "loading"
                     ? "网页正在加载中。如果目标站点禁用了 iframe 嵌入，页面可能无法在此区域显示。"
-                    : "如果目标站点设置了 X-Frame-Options 或 CSP，可能会拒绝在内嵌区域显示。这种情况下可以先用右上角按钮在浏览器打开。"}
+                    : "若站点禁止 iframe 嵌入，可使用应用内窗口打开，仍然不会跳到系统浏览器。"}
                 </p>
               ) : null}
             </div>
@@ -173,7 +220,7 @@ export function WebviewPage() {
                   当前 API 还没有网站网址
                 </h3>
                 <p className="mt-2 max-w-lg text-sm leading-6 text-slate-600">
-                  请回到 API 管理页，在当前配置中填写站点网址。填写后，这里会直接在应用内加载对应网页。
+                  请回到 API 管理页填写站点网址，保存后这里会自动加载。
                 </p>
                 <div className="mt-6">
                   <Link to="/api-management">

@@ -193,14 +193,14 @@ export function ApiDetailForm({
 
   return (
     <form className="flex h-full flex-col" onSubmit={handleSubmit}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
           <h3 className="text-sm font-semibold text-slate-900">API 详情</h3>
-          <p className="mt-1 text-sm text-slate-600">
-            切换协议时，OpenAI 和 Anthropic 各自的 Base URL、API Key、默认模型会独立保存，不会互相覆盖。
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600 [text-wrap:pretty]">
+            OpenAI 与 Anthropic 配置独立保存；切换协议时只编辑当前协议的数据。
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
             variant="outline"
@@ -323,27 +323,36 @@ export function ApiDetailForm({
             ) : null}
             {modelSuggestions.length > 0 ? (
               <>
-                <select
-                  className={getFieldClassName(false)}
-                  value=""
-                  onChange={(event) => {
-                    if (!event.target.value) {
-                      return;
-                    }
-
-                    updateActiveProviderField("defaultModel", event.target.value);
-                    event.currentTarget.value = "";
-                  }}
-                >
-                  <option value="">从已拉取模型中选择</option>
-                  {modelSuggestions.map((model) => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
-                  ))}
-                </select>
-                <span className="text-xs text-slate-500">
-                  已拉取 {modelSuggestions.length} 个模型，这里会完整展示所有模型选项；你也可以继续手动输入。
+                <div className="rounded-xl border border-slate-200 bg-white p-2">
+                  <div className="mb-2 flex items-center justify-between gap-3 px-2">
+                    <span className="text-xs font-medium text-slate-700">
+                      已拉取模型
+                    </span>
+                    <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
+                      {modelSuggestions.length} 个
+                    </span>
+                  </div>
+                  <div className="max-h-56 min-w-0 space-y-1 overflow-y-auto pr-1">
+                    {modelSuggestions.map((model) => (
+                      <button
+                        key={model}
+                        type="button"
+                        className={cn(
+                          "flex w-full min-w-0 items-center rounded-lg px-3 py-2 text-left font-mono text-xs transition hover:bg-slate-100",
+                          activeProviderConfig.defaultModel === model
+                            ? "bg-slate-900 text-white hover:bg-slate-900"
+                            : "text-slate-700",
+                        )}
+                        title={model}
+                        onClick={() => updateActiveProviderField("defaultModel", model)}
+                      >
+                        <span className="min-w-0 truncate">{model}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <span className="text-xs leading-5 text-slate-500">
+                  模型列表固定在表单内部滚动，长模型名会省略显示，悬停可查看完整名称。
                 </span>
               </>
             ) : null}
@@ -400,8 +409,8 @@ export function ApiDetailForm({
               <ShieldCheck className="h-4 w-4" />
               API Key 保护措施
             </div>
-            <p className="mt-2">
-              默认隐藏密钥；手动显示后会在 15 秒后自动恢复隐藏。复制后会尝试在 30 秒后清空剪贴板，但如果你期间复制了别的内容，我们不会覆盖它。
+            <p className="mt-2 [text-wrap:pretty]">
+              默认隐藏密钥；显示 15 秒后自动恢复。复制后会尝试在 30 秒后清空剪贴板，如果期间复制了别的内容则不会覆盖。
             </p>
           </div>
           {!copyFeedback ? null : (

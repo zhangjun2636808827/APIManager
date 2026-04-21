@@ -388,7 +388,7 @@ export function ChatPage() {
       <section className="w-full">
         <PageHeader
           title="聊天页"
-          description="聊天页会始终绑定当前选中的 API。开始对话前，请先回到 API 管理页创建或选择一个配置。"
+          description="聊天页绑定当前选中的 API。开始前，请先创建或选择一个配置。"
         />
 
         <Card className="min-h-[420px]">
@@ -400,7 +400,7 @@ export function ChatPage() {
               还没有可用的当前 API
             </h3>
             <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
-              聊天页不会直接维护配置，它只读取全局当前选中的 API。请先到 API 管理页创建配置，或重新选择一个已有配置。
+              聊天页只读取全局当前 API。请先到 API 管理页创建或选择配置。
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <Link to="/api-management">
@@ -420,7 +420,7 @@ export function ChatPage() {
     <section className="flex w-full flex-col">
       <PageHeader
         title="聊天页"
-        description="这里是统一聊天入口。当前阶段已经支持会话持久化、重命名、删除、清空消息、自动滚动和正在回复提示。"
+        description="统一聊天入口，支持会话管理、流式回复、自动滚动和停止生成。"
       />
 
       <div className="grid min-h-[calc(100vh-10rem)] gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
@@ -428,7 +428,7 @@ export function ChatPage() {
           <CardHeader>
             <CardTitle>当前 API</CardTitle>
             <CardDescription>
-              聊天页不会单独维护配置来源，这里直接读取全局当前选中的 API，确保后续请求目标始终一致。
+              直接读取全局当前 API，保证请求目标一致。
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -471,7 +471,7 @@ export function ChatPage() {
                 <CardTitle>聊天窗口</CardTitle>
                 <CardDescription>
                   当前 API 是 <span className="font-medium text-slate-900">{selectedApi.name}</span>。
-                  OpenAI-compatible 和 Anthropic 会分别读取各自独立保存的连接配置。
+                  当前协议会读取对应的独立连接配置。
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
@@ -498,12 +498,25 @@ export function ChatPage() {
             </div>
           </CardHeader>
           <CardContent className="flex flex-1 flex-col gap-4">
-            <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-600">
-              当前会话：{activeSession?.title ?? "未创建"}
-              <br />
-              当前将默认使用模型：{activeProviderConfig?.defaultModel || "未填写"}
-              <br />
-              当前协议：{selectedApi.providerType}
+            <div className="grid gap-3 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-sm text-slate-600 md:grid-cols-3">
+              <div className="min-w-0">
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">当前会话</p>
+                <p className="mt-1 truncate font-medium text-slate-900" title={activeSession?.title ?? "未创建"}>
+                  {activeSession?.title ?? "未创建"}
+                </p>
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">默认模型</p>
+                <p className="mt-1 truncate font-medium text-slate-900" title={activeProviderConfig?.defaultModel || "未填写"}>
+                  {activeProviderConfig?.defaultModel || "未填写"}
+                </p>
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">当前协议</p>
+                <p className="mt-1 truncate font-medium text-slate-900" title={selectedApi.providerType}>
+                  {selectedApi.providerType}
+                </p>
+              </div>
             </div>
 
             <div className="max-h-[58vh] min-h-[360px] overflow-y-auto rounded-xl border border-slate-200 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] p-5">
@@ -533,7 +546,7 @@ export function ChatPage() {
                   <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
                     {isSending
                       ? "请求已经发送，请稍等模型返回结果。"
-                      : "你现在可以为同一个 API 建多个会话。每个会话会单独保留消息流，方便按主题拆分上下文。"}
+                      : "同一个 API 可以创建多个会话，方便按主题拆分上下文。"}
                   </p>
                 </div>
               )}
@@ -544,7 +557,7 @@ export function ChatPage() {
                 <div className="text-xs text-slate-500">
                   {isSending
                     ? "正在回复中，请等待当前请求完成后再继续发送。"
-                    : "请求会走 Tauri HTTP 插件，避免 WebView 的跨域限制影响 Anthropic 模式。"}
+                    : "请求会走 Tauri HTTP 插件，避免 WebView 跨域限制。"}
                 </div>
               </div>
               <div className="mt-4">

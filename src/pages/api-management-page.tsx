@@ -177,7 +177,7 @@ export function ApiManagementPage() {
     <section className="w-full">
       <PageHeader
         title="API 管理页"
-        description="这里现在是 API 管理主工作台。左侧维护多个 API 配置，右侧编辑当前选中项的详细信息，并把当前 API 作为聊天页和内置网页页的统一入口。"
+        description="管理多个 API 配置，编辑连接信息，并作为聊天与内置网页的统一入口。"
       />
 
       {!hasApiConfigs ? (
@@ -188,7 +188,7 @@ export function ApiManagementPage() {
             <CardHeader>
               <CardTitle>配置列表</CardTitle>
               <CardDescription>
-                选择一个 API 后，右侧会切换到对应详情表单。删除当前选中项后，会自动切换到下一个可用配置。
+                选择 API 后在右侧编辑；删除当前项后会自动切换到下一个配置。
               </CardDescription>
             </CardHeader>
             <CardContent className="h-[calc(100%-5rem)]">
@@ -206,34 +206,34 @@ export function ApiManagementPage() {
             <CardHeader>
               <CardTitle>配置详情</CardTitle>
               <CardDescription>
-                OpenAI-compatible 和 Anthropic 的连接信息会独立保存。切换协议后会显示并编辑各自那一套配置。
+                OpenAI-compatible 与 Anthropic 连接信息独立保存。
               </CardDescription>
             </CardHeader>
             <CardContent className="flex h-[calc(100%-5rem)] flex-col">
               {selectedApi ? (
                 <>
                   <div className="mb-5 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600 md:grid-cols-3">
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
                         当前协议
                       </p>
-                      <p className="mt-2 font-medium text-slate-900">
+                      <p className="mt-2 truncate font-medium text-slate-900" title={selectedApi.providerType}>
                         {selectedApi.providerType}
                       </p>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
                         创建时间
                       </p>
-                      <p className="mt-2 font-medium text-slate-900">
+                      <p className="mt-2 truncate font-medium text-slate-900" title={selectedMeta?.createdAt}>
                         {selectedMeta?.createdAt}
                       </p>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
                         最后更新
                       </p>
-                      <p className="mt-2 font-medium text-slate-900">
+                      <p className="mt-2 truncate font-medium text-slate-900" title={selectedMeta?.updatedAt}>
                         {selectedMeta?.updatedAt}
                       </p>
                     </div>

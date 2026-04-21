@@ -59,6 +59,7 @@ desktop.ini
 *.tmp
 *.temp
 .cache/
+.codex-backups/
 .tmp/
 tmp/
 temp/

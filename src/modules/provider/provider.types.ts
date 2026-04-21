@@ -19,6 +19,14 @@ export interface StreamChatCallbacks {
 export interface ConnectionTestResult {
   ok: boolean;
   message: string;
+  latencyMs?: number;
+  totalMs?: number;
+  outputChars?: number;
+  charsPerSecond?: number;
+  prompt?: string;
+  responsePreview?: string;
+  selfIntroduction?: string;
+  qualitySummary?: string;
 }
 
 export interface ModelListResult {

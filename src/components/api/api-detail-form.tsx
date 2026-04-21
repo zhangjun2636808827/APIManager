@@ -1,4 +1,4 @@
-﻿import { FormEvent, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Copy,
   Database,
@@ -8,12 +8,13 @@ import {
   LoaderCircle,
   MessageSquareText,
   PlugZap,
-  Save,
   ScanSearch,
   ShieldCheck,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { ApiParametersForm } from "@/components/api/api-parameters-form";
+import { ApiWebsiteLinksEditor } from "@/components/api/api-website-links-editor";
 import { Button } from "@/components/ui/button";
 import {
   clearClipboardIfUnchanged,
@@ -21,7 +22,11 @@ import {
 } from "@/lib/clipboard";
 import { cn } from "@/lib/utils";
 import type { ApiDraftFieldErrors } from "@/modules/api/api-validation";
-import { type ApiConfigDraft } from "@/types/api-config";
+import {
+  type ApiConfigDraft,
+  type ApiWebsiteLink,
+  type ChatModelParameters,
+} from "@/types/api-config";
 import { providerOptions } from "@/types/provider";
 
 interface ApiDetailFormProps {
@@ -34,7 +39,6 @@ interface ApiDetailFormProps {
   connectionTestStatus?: "idle" | "success" | "error";
   modelSuggestions?: string[];
   onChange: (nextValue: ApiConfigDraft) => void;
-  onSubmit: () => void;
   onTestConnection: () => void;
   onLoadModels: () => void;
 }
@@ -49,7 +53,6 @@ export function ApiDetailForm({
   connectionTestStatus = "idle",
   modelSuggestions = [],
   onChange,
-  onSubmit,
   onTestConnection,
   onLoadModels,
 }: ApiDetailFormProps) {
@@ -65,11 +68,6 @@ export function ApiDetailForm({
   const hideTimerRef = useRef<number | null>(null);
   const clearClipboardTimerRef = useRef<number | null>(null);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    onSubmit();
-  }
-
   function updateField<K extends keyof ApiConfigDraft>(
     key: K,
     fieldValue: ApiConfigDraft[K],
@@ -81,7 +79,7 @@ export function ApiDetailForm({
   }
 
   function updateActiveProviderField(
-    key: keyof typeof activeProviderConfig,
+    key: "baseUrl" | "apiKey" | "defaultModel",
     fieldValue: string,
   ) {
     const nextProviderConfig = {
@@ -101,6 +99,41 @@ export function ApiDetailForm({
         value.providerType === "openai-compatible"
           ? nextProviderConfig
           : value.openAIConfig,
+    });
+  }
+
+  function updateActiveProviderParameters(parameters: ChatModelParameters) {
+    const nextProviderConfig = {
+      ...(value.providerType === "anthropic"
+        ? value.anthropicConfig
+        : value.openAIConfig),
+      parameters,
+    };
+
+    onChange({
+      ...value,
+      anthropicConfig:
+        value.providerType === "anthropic"
+          ? nextProviderConfig
+          : value.anthropicConfig,
+      openAIConfig:
+        value.providerType === "openai-compatible"
+          ? nextProviderConfig
+          : value.openAIConfig,
+    });
+  }
+
+  function updateWebsiteLinks(websiteLinks: ApiWebsiteLink[]) {
+    const primaryUrl =
+      websiteLinks.find((link) => link.type === "console" && link.url.trim())
+        ?.url ??
+      websiteLinks.find((link) => link.url.trim())?.url ??
+      "";
+
+    onChange({
+      ...value,
+      websiteLinks,
+      websiteUrl: primaryUrl,
     });
   }
 
@@ -192,46 +225,15 @@ export function ApiDetailForm({
   }
 
   return (
-    <form className="flex h-full flex-col" onSubmit={handleSubmit}>
+    <div className="flex h-full flex-col">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-slate-900">API 详情</h3>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600 [text-wrap:pretty]">
-            OpenAI 与 Anthropic 配置独立保存；切换协议时只编辑当前协议的数据。
+            OpenAI 与 Anthropic 配置独立保存；所有修改会自动保存。
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onLoadModels}
-            disabled={isSaveDisabled || isLoadingModels}
-          >
-            {isLoadingModels ? (
-              <LoaderCircle className="h-4 w-4 animate-spin" />
-            ) : (
-              <ScanSearch className="h-4 w-4" />
-            )}
-            拉取模型
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onTestConnection}
-            disabled={isSaveDisabled || isTestingConnection}
-          >
-            {isTestingConnection ? (
-              <LoaderCircle className="h-4 w-4 animate-spin" />
-            ) : (
-              <PlugZap className="h-4 w-4" />
-            )}
-            测试连接
-          </Button>
-          <Button type="submit" disabled={isSaveDisabled}>
-            <Save className="h-4 w-4" />
-            保存变更
-          </Button>
-        </div>
+        <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">自动保存</div>
       </div>
 
       <div className="mt-6 grid gap-5">
@@ -306,7 +308,22 @@ export function ApiDetailForm({
 
           <div className="grid gap-2">
             <label className="grid gap-2">
-              <span className="text-sm font-medium text-slate-800">默认模型</span>
+              <span className="flex items-center justify-between gap-3 text-sm font-medium text-slate-800">
+                默认模型
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onLoadModels}
+                  disabled={isSaveDisabled || isLoadingModels}
+                >
+                  {isLoadingModels ? (
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ScanSearch className="h-4 w-4" />
+                  )}
+                  拉取模型
+                </Button>
+              </span>
               <input
                 className={getFieldClassName(Boolean(fieldErrors.activeDefaultModel))}
                 value={activeProviderConfig.defaultModel}
@@ -428,19 +445,6 @@ export function ApiDetailForm({
         </div>
 
         <label className="grid gap-2">
-          <span className="text-sm font-medium text-slate-800">网站网址</span>
-          <input
-            className={getFieldClassName(Boolean(fieldErrors.websiteUrl))}
-            value={value.websiteUrl}
-            onChange={(event) => updateField("websiteUrl", event.target.value)}
-            placeholder="https://platform.example.com"
-          />
-          {fieldErrors.websiteUrl ? (
-            <span className="text-xs text-red-600">{fieldErrors.websiteUrl}</span>
-          ) : null}
-        </label>
-
-        <label className="grid gap-2">
           <span className="text-sm font-medium text-slate-800">备注信息</span>
           <textarea
             className={getTextareaClassName(false)}
@@ -449,13 +453,49 @@ export function ApiDetailForm({
             placeholder="记录用途、额度、账号说明或协议差异"
           />
         </label>
+
+        <label className="grid gap-2">
+          <span className="text-sm font-medium text-slate-800">AI 描述</span>
+          <textarea
+            className={getTextareaClassName(false)}
+            value={value.aiDescription}
+            onChange={(event) => updateField("aiDescription", event.target.value)}
+            placeholder="后续测试连接时，可由模型自我介绍并自动填入这里。"
+          />
+          <span className="text-xs leading-5 text-slate-500">
+            用于记录该 API 或模型的能力、适用场景、限制和使用建议。
+          </span>
+        </label>
+
+        <ApiParametersForm
+          value={activeProviderConfig.parameters}
+          maxTokensError={fieldErrors.maxTokens}
+          onChange={updateActiveProviderParameters}
+        />
+
+        <ApiWebsiteLinksEditor
+          value={value.websiteLinks}
+          error={fieldErrors.websiteLinks ?? fieldErrors.websiteUrl}
+          onChange={updateWebsiteLinks}
+        />
       </div>
 
       {!isSaveDisabled ? null : (
         <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
-          当前配置还有未完成项。至少需要补齐名称，以及当前协议对应的 Base URL、API Key、默认模型；如果填写了网站网址，也需要是有效链接。
+          当前配置还有未完成项。至少需要补齐名称，以及当前协议对应的 Base URL、API Key、默认模型；如果配置了网址，也需要是有效链接。
         </div>
       )}
+
+      <div className="mt-5 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h4 className="text-sm font-semibold text-slate-900">连接测试</h4>
+          <p className="mt-1 text-xs leading-5 text-slate-500">测试当前配置是否可用，并尝试获取一次模型自我介绍。</p>
+        </div>
+        <Button type="button" variant="outline" onClick={onTestConnection} disabled={isSaveDisabled || isTestingConnection}>
+          {isTestingConnection ? (<LoaderCircle className="h-4 w-4 animate-spin" />) : (<PlugZap className="h-4 w-4" />)}
+          测试连接
+        </Button>
+      </div>
 
       {!connectionTestMessage ? null : (
         <div
@@ -469,6 +509,50 @@ export function ApiDetailForm({
           {connectionTestMessage}
         </div>
       )}
+
+      {value.lastBenchmark ? (
+        <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
+          <div className="flex flex-col gap-1">
+            <h4 className="text-sm font-semibold text-slate-900">
+              最近一次测试结果
+            </h4>
+            <p className="text-xs text-slate-500">
+              测试时间：{new Date(value.lastBenchmark.testedAt).toLocaleString()}
+            </p>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <p className="text-xs text-slate-500">连接阶段</p>
+              <p className="mt-1 font-mono text-sm font-semibold text-slate-900">
+                {value.lastBenchmark.latencyMs} ms
+              </p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <p className="text-xs text-slate-500">回复耗时</p>
+              <p className="mt-1 font-mono text-sm font-semibold text-slate-900">
+                {value.lastBenchmark.totalMs} ms
+              </p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <p className="text-xs text-slate-500">输出长度</p>
+              <p className="mt-1 font-mono text-sm font-semibold text-slate-900">
+                {value.lastBenchmark.outputChars} 字符
+              </p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <p className="text-xs text-slate-500">输出速度</p>
+              <p className="mt-1 font-mono text-sm font-semibold text-slate-900">
+                {value.lastBenchmark.charsPerSecond ?? 0} 字符/秒
+              </p>
+            </div>
+          </div>
+          {value.lastBenchmark.qualitySummary ? (
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              {value.lastBenchmark.qualitySummary}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mt-6 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-2">
         <Link
@@ -486,6 +570,6 @@ export function ApiDetailForm({
           打开当前 API 的内置网页
         </Link>
       </div>
-    </form>
+    </div>
   );
 }

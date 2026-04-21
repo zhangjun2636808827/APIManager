@@ -1,7 +1,11 @@
 ﻿import { Globe, KeyRound, Layers3, Link as LinkIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { getActiveProviderConfig, type ApiConfig } from "@/types/api-config";
+import {
+  getActiveProviderConfig,
+  getPrimaryWebsiteUrl,
+  type ApiConfig,
+} from "@/types/api-config";
 
 interface CurrentApiSummaryProps {
   apiConfig: ApiConfig;
@@ -50,6 +54,7 @@ export function CurrentApiSummary({
   className,
 }: CurrentApiSummaryProps) {
   const activeProviderConfig = getActiveProviderConfig(apiConfig);
+  const primaryWebsiteUrl = getPrimaryWebsiteUrl(apiConfig);
 
   return (
     <div
@@ -94,7 +99,7 @@ export function CurrentApiSummary({
         <SummaryRow
           icon={Globe}
           label="Website"
-          value={apiConfig.websiteUrl || "未填写"}
+          value={primaryWebsiteUrl || "未填写"}
         />
       </div>
     </div>

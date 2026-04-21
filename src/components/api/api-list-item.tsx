@@ -2,7 +2,11 @@
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { getActiveProviderConfig, type ApiConfig } from "@/types/api-config";
+import {
+  getActiveProviderConfig,
+  getPrimaryWebsiteUrl,
+  type ApiConfig,
+} from "@/types/api-config";
 
 interface ApiListItemProps {
   apiConfig: ApiConfig;
@@ -18,6 +22,7 @@ export function ApiListItem({
   onRemove,
 }: ApiListItemProps) {
   const activeProviderConfig = getActiveProviderConfig(apiConfig);
+  const primaryWebsiteUrl = getPrimaryWebsiteUrl(apiConfig);
 
   return (
     <div
@@ -78,7 +83,7 @@ export function ApiListItem({
         >
           <Globe className="h-3.5 w-3.5" />
           <span className="truncate">
-            {apiConfig.websiteUrl ? "已配置站点网址" : "未配置站点网址"}
+            {primaryWebsiteUrl ? "已配置站点网址" : "未配置站点网址"}
           </span>
         </div>
 

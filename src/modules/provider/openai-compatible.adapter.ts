@@ -94,6 +94,43 @@ function getOpenAITextDelta(data: unknown) {
   return chunk.choices?.[0]?.delta?.content ?? "";
 }
 
+function buildOpenAIMessages(input: ChatRequestInput) {
+  const activeProviderConfig = getActiveProviderConfig(input.config);
+  const systemPrompt = activeProviderConfig.parameters.systemPrompt.trim();
+  const messages = input.messages.map((message) => ({
+    role: message.role,
+    content: message.content,
+  }));
+
+  if (!systemPrompt) {
+    return messages;
+  }
+
+  return [
+    {
+      role: "system",
+      content: systemPrompt,
+    },
+    ...messages,
+  ];
+}
+
+function buildOpenAIChatBody(input: ChatRequestInput, stream: boolean) {
+  const activeProviderConfig = getActiveProviderConfig(input.config);
+  const parameters = activeProviderConfig.parameters;
+
+  return {
+    model: activeProviderConfig.defaultModel,
+    ...(stream ? { stream: true } : {}),
+    temperature: parameters.temperature,
+    top_p: parameters.topP,
+    max_tokens: parameters.maxTokens,
+    presence_penalty: parameters.presencePenalty,
+    frequency_penalty: parameters.frequencyPenalty,
+    messages: buildOpenAIMessages(input),
+  };
+}
+
 export const openAICompatibleAdapter: ProviderAdapter = {
   type: "openai-compatible",
   async sendMessage(input: ChatRequestInput): Promise<ChatResponse> {
@@ -110,13 +147,7 @@ export const openAICompatibleAdapter: ProviderAdapter = {
           "Content-Type": "application/json",
           Authorization: `Bearer ${activeProviderConfig.apiKey}`,
         },
-        body: JSON.stringify({
-          model: activeProviderConfig.defaultModel,
-          messages: input.messages.map((message) => ({
-            role: message.role,
-            content: message.content,
-          })),
-        }),
+        body: JSON.stringify(buildOpenAIChatBody(input, false)),
       });
     } catch (error) {
       throw new Error(
@@ -164,14 +195,7 @@ export const openAICompatibleAdapter: ProviderAdapter = {
           "Content-Type": "application/json",
           Authorization: `Bearer ${activeProviderConfig.apiKey}`,
         },
-        body: JSON.stringify({
-          model: activeProviderConfig.defaultModel,
-          stream: true,
-          messages: input.messages.map((message) => ({
-            role: message.role,
-            content: message.content,
-          })),
-        }),
+        body: JSON.stringify(buildOpenAIChatBody(input, true)),
       });
     } catch (error) {
       throw new Error(

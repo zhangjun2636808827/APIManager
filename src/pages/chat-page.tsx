@@ -21,7 +21,7 @@ import {
   loadChatStorageState,
   persistChatStorageState,
 } from "@/modules/chat/chat-storage";
-import { streamChatMessage } from "@/modules/chat/chat.service";
+import { sendChatMessage, streamChatMessage } from "@/modules/chat/chat.service";
 import { getActiveProviderConfig } from "@/types/api-config";
 import type { ChatMessage, ChatSession } from "@/types/chat";
 
@@ -336,13 +336,14 @@ export function ChatPage() {
       abortControllerRef.current = abortController;
       setIsSending(true);
 
-      await streamChatMessage(
-        {
-          config: selectedApi,
-          messages: [...activeSession.messages, userMessage],
-          signal: abortController.signal,
-        },
-        {
+      const requestInput = {
+        config: selectedApi,
+        messages: [...activeSession.messages, userMessage],
+        signal: abortController.signal,
+      };
+
+      if (activeProviderConfig?.parameters.stream) {
+        await streamChatMessage(requestInput, {
           onText: (text) => {
             updateAssistantMessageContent(
               activeSession.id,
@@ -350,8 +351,15 @@ export function ChatPage() {
               (currentContent) => `${currentContent}${text}`,
             );
           },
-        },
-      );
+        });
+      } else {
+        const response = await sendChatMessage(requestInput);
+        updateAssistantMessageContent(
+          activeSession.id,
+          assistantMessage.id,
+          () => response.content,
+        );
+      }
     } catch (error) {
       if (abortController.signal.aborted) {
         updateAssistantMessageContent(
@@ -515,6 +523,12 @@ export function ChatPage() {
                 <p className="text-xs uppercase tracking-[0.16em] text-slate-500">当前协议</p>
                 <p className="mt-1 truncate font-medium text-slate-900" title={selectedApi.providerType}>
                   {selectedApi.providerType}
+                </p>
+              </div>
+              <div className="min-w-0 md:col-span-3">
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">参数摘要</p>
+                <p className="mt-1 truncate font-medium text-slate-900">
+                  Temp {activeProviderConfig?.parameters.temperature ?? "-"} · Top P {activeProviderConfig?.parameters.topP ?? "-"} · Max Tokens {activeProviderConfig?.parameters.maxTokens ?? "-"} · {activeProviderConfig?.parameters.stream ? "流式输出" : "非流式输出"}
                 </p>
               </div>
             </div>

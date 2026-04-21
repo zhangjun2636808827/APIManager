@@ -21,6 +21,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useApiContext } from "@/modules/api/api-context";
+import { getPrimaryWebsiteUrl, type ApiWebsiteLink } from "@/types/api-config";
 
 function isValidHttpUrl(value: string) {
   try {
@@ -35,22 +36,66 @@ function getConsoleWindowLabel(apiId: string) {
   return `provider-console-${apiId.replace(/[^a-zA-Z0-9-_:]/g, "-")}`;
 }
 
+function getLinkLabel(link: ApiWebsiteLink) {
+  return link.label.trim() || "未命名链接";
+}
+
 export function WebviewPage() {
   const { selectedApi } = useApiContext();
-  const [frameUrl, setFrameUrl] = useState("");
+  const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
   const [frameKey, setFrameKey] = useState(0);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded">("idle");
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded">(
+    "idle",
+  );
 
-  const websiteUrl = selectedApi?.websiteUrl.trim() ?? "";
+  const websiteLinks = useMemo(() => {
+    if (!selectedApi) {
+      return [];
+    }
+
+    if (selectedApi.websiteLinks.length > 0) {
+      return selectedApi.websiteLinks;
+    }
+
+    const primaryUrl = getPrimaryWebsiteUrl(selectedApi);
+    return primaryUrl
+      ? [
+          {
+            id: "legacy-website-url",
+            label: "控制台",
+            url: primaryUrl,
+            type: "console" as const,
+          },
+        ]
+      : [];
+  }, [selectedApi]);
+
+  const selectedLink = useMemo(() => {
+    return (
+      websiteLinks.find((link) => link.id === selectedLinkId) ??
+      websiteLinks.find((link) => link.type === "console") ??
+      websiteLinks[0] ??
+      null
+    );
+  }, [selectedLinkId, websiteLinks]);
+
+  const frameUrl = selectedLink?.url.trim() ?? "";
+  const hasWebsiteUrl = Boolean(frameUrl);
+  const hasValidWebsiteUrl = useMemo(() => isValidHttpUrl(frameUrl), [frameUrl]);
 
   useEffect(() => {
-    setFrameUrl(websiteUrl);
-    setFrameKey((current) => current + 1);
-    setLoadState(websiteUrl ? "loading" : "idle");
-  }, [selectedApi?.id, websiteUrl]);
+    const nextLink =
+      websiteLinks.find((link) => link.type === "console") ??
+      websiteLinks[0] ??
+      null;
 
-  const hasWebsiteUrl = Boolean(websiteUrl);
-  const hasValidWebsiteUrl = useMemo(() => isValidHttpUrl(frameUrl), [frameUrl]);
+    setSelectedLinkId(nextLink?.id ?? null);
+  }, [selectedApi?.id, websiteLinks]);
+
+  useEffect(() => {
+    setFrameKey((current) => current + 1);
+    setLoadState(frameUrl ? "loading" : "idle");
+  }, [frameUrl]);
 
   function handleReload() {
     if (!hasValidWebsiteUrl) {
@@ -102,7 +147,7 @@ export function WebviewPage() {
       <section className="w-full">
         <PageHeader
           title="内置网页页"
-          description="内置网页页读取当前 API 的站点网址。开始前，请先选择一个配置。"
+          description="内置网页页读取当前 API 的常用网址。开始前，请先选择一个配置。"
         />
 
         <Card className="min-h-[420px]">
@@ -114,7 +159,7 @@ export function WebviewPage() {
               还没有当前 API
             </h3>
             <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
-              这个页面依赖当前 API 的网站网址。请先去 API 管理页选择配置。
+              这个页面依赖当前 API 的网址配置。请先去 API 管理页选择配置。
             </p>
             <div className="mt-6">
               <Link to="/api-management">
@@ -134,7 +179,7 @@ export function WebviewPage() {
     <section className="w-full">
       <PageHeader
         title="内置网页页"
-        description="在应用内加载当前 API 的控制台、额度、用量或帮助页面。"
+        description="在应用内打开当前 API 的控制台、余额、用量、模型或文档页面。"
       />
 
       <div className="grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
@@ -147,6 +192,40 @@ export function WebviewPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <CurrentApiSummary apiConfig={selectedApi} />
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+                网址入口
+              </p>
+              <div className="mt-3 grid gap-2">
+                {websiteLinks.length === 0 ? (
+                  <p className="text-sm leading-6 text-slate-600">
+                    当前 API 还没有配置常用网址。
+                  </p>
+                ) : null}
+
+                {websiteLinks.map((link) => (
+                  <button
+                    key={link.id}
+                    type="button"
+                    className={`min-w-0 rounded-lg border px-3 py-2 text-left text-sm transition ${
+                      selectedLink?.id === link.id
+                        ? "border-slate-900 bg-slate-900 text-white"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                    }`}
+                    onClick={() => setSelectedLinkId(link.id)}
+                  >
+                    <span className="block truncate font-medium">
+                      {getLinkLabel(link)}
+                    </span>
+                    <span className="mt-1 block truncate font-mono text-xs opacity-75">
+                      {link.url || "未填写网址"}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <Link
               to="/api-management"
               className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 transition hover:bg-slate-100"
@@ -163,11 +242,15 @@ export function WebviewPage() {
               <div>
                 <CardTitle>内置网页容器</CardTitle>
                 <CardDescription>
-                  目标网址来自当前 API 的网站网址字段。
+                  目标网址来自当前 API 的常用网址配置。
                 </CardDescription>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Button variant="outline" onClick={handleReload} disabled={!hasValidWebsiteUrl}>
+                <Button
+                  variant="outline"
+                  onClick={handleReload}
+                  disabled={!hasValidWebsiteUrl}
+                >
                   <RefreshCcw className="h-4 w-4" />
                   刷新网页
                 </Button>
@@ -192,9 +275,14 @@ export function WebviewPage() {
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">当前网址</p>
-              <p className="mt-2 truncate font-mono text-sm text-slate-900" title={websiteUrl || "未填写"}>
-                {websiteUrl || "未填写"}
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-500">
+                当前网址
+              </p>
+              <p
+                className="mt-2 truncate font-mono text-sm text-slate-900"
+                title={frameUrl || "未填写"}
+              >
+                {frameUrl || "未填写"}
               </p>
               {hasWebsiteUrl && !hasValidWebsiteUrl ? (
                 <p className="mt-3 text-sm text-red-600">
@@ -205,7 +293,7 @@ export function WebviewPage() {
                 <p className="mt-3 text-sm text-slate-600">
                   {loadState === "loading"
                     ? "网页正在加载中。如果目标站点禁用了 iframe 嵌入，页面可能无法在此区域显示。"
-                    : "若站点禁止 iframe 嵌入，可使用应用内窗口打开，仍然不会跳到系统浏览器。"}
+                    : "若站点禁止 iframe 嵌入，可使用应用内窗口打开，仍然不必跳到系统浏览器。"}
                 </p>
               ) : null}
             </div>
@@ -217,10 +305,10 @@ export function WebviewPage() {
                   <Globe className="h-5 w-5" />
                 </div>
                 <h3 className="mt-4 text-lg font-semibold text-slate-950">
-                  当前 API 还没有网站网址
+                  当前 API 还没有网址
                 </h3>
                 <p className="mt-2 max-w-lg text-sm leading-6 text-slate-600">
-                  请回到 API 管理页填写站点网址，保存后这里会自动加载。
+                  请回到 API 管理页添加控制台、余额、模型、账单或文档入口。
                 </p>
                 <div className="mt-6">
                   <Link to="/api-management">

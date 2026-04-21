@@ -38,6 +38,22 @@ function toAnthropicMessages(input: ChatRequestInput) {
     }));
 }
 
+function buildAnthropicBody(input: ChatRequestInput, stream: boolean) {
+  const activeProviderConfig = getActiveProviderConfig(input.config);
+  const parameters = activeProviderConfig.parameters;
+  const systemPrompt = parameters.systemPrompt.trim();
+
+  return {
+    model: activeProviderConfig.defaultModel,
+    max_tokens: parameters.maxTokens,
+    temperature: parameters.temperature,
+    top_p: parameters.topP,
+    ...(stream ? { stream: true } : {}),
+    ...(systemPrompt ? { system: systemPrompt } : {}),
+    messages: toAnthropicMessages(input),
+  };
+}
+
 function getAnthropicTextDelta(data: unknown) {
   const chunk = data as {
     type?: string;
@@ -75,11 +91,7 @@ export const anthropicAdapter: ProviderAdapter = {
           "x-api-key": activeProviderConfig.apiKey,
           "anthropic-version": "2023-06-01",
         },
-        body: JSON.stringify({
-          model: activeProviderConfig.defaultModel,
-          max_tokens: 1024,
-          messages: toAnthropicMessages(input),
-        }),
+        body: JSON.stringify(buildAnthropicBody(input, false)),
       });
     } catch (error) {
       throw new Error(
@@ -129,12 +141,7 @@ export const anthropicAdapter: ProviderAdapter = {
           "x-api-key": activeProviderConfig.apiKey,
           "anthropic-version": "2023-06-01",
         },
-        body: JSON.stringify({
-          model: activeProviderConfig.defaultModel,
-          max_tokens: 1024,
-          stream: true,
-          messages: toAnthropicMessages(input),
-        }),
+        body: JSON.stringify(buildAnthropicBody(input, true)),
       });
     } catch (error) {
       throw new Error(buildNetworkErrorMessage("Anthropic", requestUrl, error));

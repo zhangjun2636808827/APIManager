@@ -6,6 +6,8 @@ export interface ApiDraftFieldErrors {
   activeApiKey?: string;
   activeDefaultModel?: string;
   websiteUrl?: string;
+  websiteLinks?: string;
+  maxTokens?: string;
 }
 
 export interface ApiDraftValidationResult {
@@ -48,6 +50,18 @@ export function validateApiDraft(
 
   if (draft.websiteUrl.trim() && !isValidHttpUrl(draft.websiteUrl.trim())) {
     fieldErrors.websiteUrl = "网站网址必须是有效的 http 或 https 地址。";
+  }
+
+  const invalidLink = draft.websiteLinks.find(
+    (link) => link.url.trim() && !isValidHttpUrl(link.url.trim()),
+  );
+
+  if (invalidLink) {
+    fieldErrors.websiteLinks = `“${invalidLink.label || "未命名链接"}”的网址格式无效。`;
+  }
+
+  if (activeProviderConfig.parameters.maxTokens < 1) {
+    fieldErrors.maxTokens = "Max Tokens 必须大于 0。";
   }
 
   return {

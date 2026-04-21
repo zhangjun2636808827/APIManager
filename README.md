@@ -70,7 +70,7 @@ npm install
 ### 启动开发环境
 
 ```powershell
-npm run tauri dev
+npm run tauri:dev
 ```
 
 ### 前端构建检查
@@ -81,9 +81,142 @@ npm run build
 
 ### 打包桌面应用
 
+在开发电脑上执行：
+
 ```powershell
-npm run tauri build
+npm install
+npm run package:windows
 ```
+
+等价命令：
+
+```powershell
+npm run tauri:build
+```
+
+打包完成后会生成两个重点产物。
+
+推荐分发 NSIS 安装包：
+
+```text
+src-tauri\target\release\bundle\nsis\*.exe
+```
+
+如果只想复制主程序，也可以使用：
+
+```text
+src-tauri\target\release\api-manager.exe
+```
+
+推荐优先把 NSIS 安装包发给另一台电脑，而不是只复制 `api-manager.exe`。安装包更符合 Windows 软件分发方式，也更容易处理安装路径和快捷方式。
+
+完整说明见 [Windows 打包与分发说明](docs/PACKAGING.md)。
+
+## Windows 打包和安装流程
+
+### 1. 开发电脑准备环境
+
+只需要开发电脑安装这些环境：
+
+- Node.js 18 或更高版本
+- npm
+- Rust 工具链
+- Tauri 2 所需 Windows 构建依赖
+- Windows WebView2 Runtime
+
+另一台运行软件的电脑不需要安装 Node.js、npm、Rust 或 Tauri。
+
+### 2. 开发电脑安装依赖
+
+在项目根目录运行：
+
+```powershell
+npm install
+```
+
+### 3. 开发电脑执行打包
+
+在项目根目录运行：
+
+```powershell
+npm run package:windows
+```
+
+如果想使用 Tauri 原生命令，也可以运行：
+
+```powershell
+npm run tauri:build
+```
+
+### 4. 找到打包产物
+
+打包成功后，安装包位于：
+
+```text
+src-tauri\target\release\bundle\nsis\
+```
+
+通常文件名类似：
+
+```text
+API Manager_0.1.0_x64-setup.exe
+```
+
+主程序位于：
+
+```text
+src-tauri\target\release\api-manager.exe
+```
+
+### 5. 分发给另一台电脑
+
+推荐把这个安装包复制到另一台电脑：
+
+```text
+src-tauri\target\release\bundle\nsis\*.exe
+```
+
+另一台电脑双击安装包即可安装运行，不需要安装开发环境。
+
+### 6. 另一台电脑直接运行 exe
+
+如果不想安装，也可以尝试复制这个文件：
+
+```text
+src-tauri\target\release\api-manager.exe
+```
+
+然后在另一台电脑上双击运行。
+
+注意：直接运行主程序时，如果目标电脑缺少 Microsoft Edge WebView2 Runtime，应用可能无法启动。Windows 10/11 大多数环境通常已经具备该运行时；如果没有，需要单独安装 WebView2 Runtime。
+
+### 7. 打包验证
+
+建议在开发电脑完成打包后先验证：
+
+```powershell
+src-tauri\target\release\api-manager.exe
+```
+
+如果主程序可以启动，再把 NSIS 安装包复制到另一台电脑测试安装。
+
+### 8. 发布到 GitHub 的建议
+
+不要把打包产物提交到 Git 仓库：
+
+```text
+src-tauri/target/
+dist/
+node_modules/
+```
+
+如果要公开发布安装包，推荐使用 GitHub Releases 上传：
+
+```text
+src-tauri\target\release\bundle\nsis\*.exe
+```
+
+源码仓库只保留代码、配置和文档；安装包作为 Release 附件发布。
 
 ## 配置说明
 
